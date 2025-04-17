@@ -50,15 +50,43 @@ export default async function HomePage({ params }: PageProps) {
           0.5
         );
 
-        const parsedResult = JSON.parse(
-          result.choices[0].message.content?.trim() || "{}"
-        );
+        console.log("[HomePage] OpenAI raw response:", result);
 
-        return {
-          title: item.title,
-          summary: parsedResult.summary || "",
-          sources: parsedResult.sources || [],
-        };
+        if (!result.choices?.[0]?.message?.content) {
+          console.error(
+            "[HomePage] Invalid OpenAI response structure:",
+            result
+          );
+          return {
+            title: item.title,
+            summary: "No se pudo generar un resumen en este momento.",
+            sources: [],
+          };
+        }
+
+        try {
+          const content = result.choices[0].message.content.trim();
+          console.log("[HomePage] OpenAI content before parsing:", content);
+
+          const parsedResult = JSON.parse(content);
+          console.log("[HomePage] Parsed result:", parsedResult);
+
+          return {
+            title: item.title,
+            summary: parsedResult.summary || "",
+            sources: parsedResult.sources || [],
+          };
+        } catch (parseError) {
+          console.error(
+            "[HomePage] Error parsing OpenAI response:",
+            parseError
+          );
+          return {
+            title: item.title,
+            summary: "Error al procesar la respuesta.",
+            sources: [],
+          };
+        }
       })
     );
     console.log(newsList[0].sources);
