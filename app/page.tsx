@@ -2,39 +2,14 @@
 import Link from "next/link";
 import { NewsListContainer } from "@/components/NewsListContainer";
 import { callOpenAI } from "@/lib/openai";
-
-interface NewsItem {
-  title: string;
-  summary: string;
-  sources: {
-    name: string;
-    summary: string;
-  }[];
-}
-
-const CATEGORIES = [
-  "actualidad",
-  "economía",
-  "tecnología",
-  "política",
-  "deportes",
-  "cultura",
-  "sociedad",
-  "internacional",
-];
-
-const SOURCES = [
-  "El País",
-  "El Mundo",
-  "ABC",
-  "La Vanguardia",
-  "El Confidencial",
-];
-
-function cleanJsonResponse(content: string): string {
-  // Remove markdown code block syntax if present
-  return content.replace(/```json\n?|\n?```/g, "").trim();
-}
+import { NewsItem } from "@/types";
+import {
+  CATEGORIES,
+  getObjectivityPrompt,
+  getTrendingPrompt,
+  NAME,
+} from "@/placeholder";
+import { cleanJsonResponse } from "./utils";
 
 export default async function HomePage({
   searchParams,
@@ -42,16 +17,11 @@ export default async function HomePage({
   searchParams: { category?: string };
 }) {
   let newsList: NewsItem[] = [];
-  const currentCategory = (await searchParams).category || "actualidad";
+  const currentCategory = searchParams?.category || "actualidad";
 
   try {
-    // 1. Get trending news
-    const trendingPrompt = `
-Act as a Spanish news editor. Return the top 10 trending news from Spain today in the category "${currentCategory}".
-Return ONLY a valid JSON array with objects containing "title" and "summary" fields.
-Do not include any markdown formatting or additional text.
-Example format: [{"title": "News Title", "summary": "News Summary"}]
-`;
+    // Paso 1: Obtengo las noticias trendy del dia (Extraigo el top 10 de la categoría seleccionada)
+    const trendingPrompt = getTrendingPrompt(currentCategory);
 
     const trendingRes = await callOpenAI(
       [{ role: "user", content: trendingPrompt }],
@@ -63,41 +33,16 @@ Example format: [{"title": "News Title", "summary": "News Summary"}]
       throw new Error("No content received from OpenAI");
     }
 
-    // 2. Parse and process news
     const cleanedContent = cleanJsonResponse(content);
-
     const parsedNews = JSON.parse(cleanedContent);
     if (!Array.isArray(parsedNews)) {
       throw new Error("Invalid news format");
     }
 
-    // 3. Create objective view for each
+    // Paso 2: Extraigo la noticia objetiva cruzándola con todas las fuentes (Fuentes predefinidas en placeholder)
     newsList = await Promise.all(
       parsedNews.map(async (item: NewsItem) => {
-        const objectivityPrompt = `
-Eres un periodista imparcial. Escribe un resumen objetivo de la siguiente noticia utilizando información de los principales medios españoles: ${SOURCES.join(
-          ", "
-        )}.
-
-Título: ${item.title}
-Resumen: ${item.summary}
-
-Proporciona una síntesis clara e imparcial (máximo 150 palabras).
-Además, para cada fuente (${SOURCES.join(
-          ", "
-        )}), proporciona un resumen muy breve (máximo 50 palabras) de su perspectiva sobre esta noticia.
-Formatea la respuesta como un objeto JSON con los campos "summary" y "sources", donde "sources" es un array de objetos con los campos "name" y "summary".
-Formato de ejemplo:
-{
-  "summary": "Resumen objetivo aquí...",
-  "sources": [
-    {
-      "name": "Nombre de la Fuente",
-      "summary": "Resumen breve de esta fuente..."
-    }
-  ]
-}
-`;
+        const objectivityPrompt = getObjectivityPrompt(item);
 
         const result = await callOpenAI(
           [{ role: "user", content: objectivityPrompt }],
@@ -115,6 +60,7 @@ Formato de ejemplo:
         };
       })
     );
+    console.log(newsList[0].sources);
   } catch (error) {
     console.error("Error fetching news:", error);
   }
@@ -128,7 +74,7 @@ Formato de ejemplo:
             <div className="flex items-center">
               <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <span className="text-blue-600">📰</span>
-                The Objective Brief
+                {NAME}
               </h1>
             </div>
             <nav className="mt-4 sm:mt-0">
@@ -195,8 +141,8 @@ Formato de ejemplo:
       <footer className="bg-white border-t border-gray-200 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <p className="text-center text-sm text-gray-500">
-            © {new Date().getFullYear()} The Objective Brief. Todas las noticias
-            son generadas por IA.
+            © {new Date().getFullYear()} ${NAME}. Todas las noticias son
+            generadas por IA.
           </p>
         </div>
       </footer>

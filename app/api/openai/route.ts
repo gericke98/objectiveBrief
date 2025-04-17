@@ -1,13 +1,9 @@
+import { OpenAIMessage } from "@/types";
 import { NextRequest } from "next/server";
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 1 second
-const MODEL = "gpt-4o-mini";
-
-interface OpenAIMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
+const MAX_RETRIES = Number(process.env.MAX_RETRIES);
+const RETRY_DELAY = Number(process.env.RETRY_DELAY);
+const MODEL = process.env.MODEL;
 
 async function callOpenAI(
   messages: OpenAIMessage[],

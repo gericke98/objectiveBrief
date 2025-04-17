@@ -1,3 +1,5 @@
+import { NAME } from "@/placeholder";
+
 export default function Loading() {
   return (
     <div className="min-h-screen bg-gray-50">
@@ -8,7 +10,7 @@ export default function Loading() {
             <div className="flex items-center">
               <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <span className="text-blue-600">📰</span>
-                The Objective Brief
+                {NAME}
               </h1>
             </div>
             <nav className="mt-4 sm:mt-0">

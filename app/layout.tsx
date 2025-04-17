@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { NAME } from "@/placeholder";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "The Objective Brief",
+  title: NAME,
   description:
     "Las noticias más relevantes de España, resumidas objetivamente por inteligencia artificial.",
 };

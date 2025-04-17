@@ -3,11 +3,7 @@
 import { useState, useEffect } from "react";
 import { NewsList } from "./NewsList";
 import { usePathname, useSearchParams } from "next/navigation";
-
-interface NewsItem {
-  title: string;
-  summary: string;
-}
+import { NewsItem } from "@/types";
 
 interface NewsListContainerProps {
   newsList: NewsItem[];

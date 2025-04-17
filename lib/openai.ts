@@ -1,9 +1,6 @@
 "use server";
 
-interface OpenAIMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
+import { OpenAIMessage } from "@/types";
 
 export async function callOpenAI(
   messages: OpenAIMessage[],

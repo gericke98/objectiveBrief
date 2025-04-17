@@ -1,16 +1,8 @@
 // components/NewsList.tsx
 "use client";
 
+import { NewsItem } from "@/types";
 import { useState } from "react";
-
-interface NewsItem {
-  title: string;
-  summary: string;
-  sources: {
-    name: string;
-    summary: string;
-  }[];
-}
 
 interface NewsListProps {
   newsList: NewsItem[];
