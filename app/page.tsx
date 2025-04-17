@@ -44,49 +44,66 @@ export default async function HomePage({ params }: PageProps) {
     newsList = await Promise.all(
       parsedNews.map(async (item: NewsItem) => {
         const objectivityPrompt = getObjectivityPrompt(item);
+        let retries = 3;
 
-        const result = await callOpenAI(
-          [{ role: "user", content: objectivityPrompt }],
-          0.5
-        );
+        while (retries > 0) {
+          try {
+            console.log(
+              `[HomePage] Attempting OpenAI call for "${item.title}" (${retries} retries left)`
+            );
 
-        console.log("[HomePage] OpenAI raw response:", result);
+            const result = await Promise.race([
+              callOpenAI([{ role: "user", content: objectivityPrompt }], 0.5),
+              new Promise((_, reject) =>
+                setTimeout(
+                  () => reject(new Error("OpenAI request timeout")),
+                  30000
+                )
+              ),
+            ]);
 
-        if (!result.choices?.[0]?.message?.content) {
-          console.error(
-            "[HomePage] Invalid OpenAI response structure:",
-            result
-          );
-          return {
-            title: item.title,
-            summary: "No se pudo generar un resumen en este momento.",
-            sources: [],
-          };
+            console.log("[HomePage] OpenAI raw response:", result);
+
+            if (!result.choices?.[0]?.message?.content) {
+              console.error(
+                "[HomePage] Invalid OpenAI response structure:",
+                result
+              );
+              throw new Error("Invalid OpenAI response structure");
+            }
+
+            const content = result.choices[0].message.content.trim();
+            console.log("[HomePage] OpenAI content before parsing:", content);
+
+            const parsedResult = JSON.parse(content);
+            console.log("[HomePage] Parsed result:", parsedResult);
+
+            return {
+              title: item.title,
+              summary: parsedResult.summary || "",
+              sources: parsedResult.sources || [],
+            };
+          } catch (error) {
+            console.error(`[HomePage] Error in attempt ${4 - retries}:`, error);
+            retries--;
+
+            if (retries > 0) {
+              // Wait before retrying (exponential backoff)
+              await new Promise((resolve) =>
+                setTimeout(resolve, Math.pow(2, 3 - retries) * 1000)
+              );
+            }
+          }
         }
 
-        try {
-          const content = result.choices[0].message.content.trim();
-          console.log("[HomePage] OpenAI content before parsing:", content);
-
-          const parsedResult = JSON.parse(content);
-          console.log("[HomePage] Parsed result:", parsedResult);
-
-          return {
-            title: item.title,
-            summary: parsedResult.summary || "",
-            sources: parsedResult.sources || [],
-          };
-        } catch (parseError) {
-          console.error(
-            "[HomePage] Error parsing OpenAI response:",
-            parseError
-          );
-          return {
-            title: item.title,
-            summary: "Error al procesar la respuesta.",
-            sources: [],
-          };
-        }
+        // If we've exhausted all retries, return a fallback
+        console.error("[HomePage] All retries failed for:", item.title);
+        return {
+          title: item.title,
+          summary:
+            "No se pudo generar un resumen en este momento. Por favor, inténtalo de nuevo más tarde.",
+          sources: [],
+        };
       })
     );
     console.log(newsList[0].sources);
