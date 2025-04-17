@@ -125,18 +125,18 @@ export default async function HomePage({ params }: PageProps) {
             </div>
             <nav className="mt-4 sm:mt-0">
               <ul className="flex flex-wrap gap-2">
-                {CATEGORIES.map((category) => (
-                  <li key={category}>
+                {CATEGORIES.map((cat) => (
+                  <li key={cat}>
                     <Link
-                      href={`/?category=${category}`}
+                      href={`/news/${cat}`}
                       className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                        category === currentCategory
+                        cat === currentCategory
                           ? "text-blue-600 bg-blue-50"
                           : "text-gray-700 hover:text-blue-600 hover:bg-blue-50"
                       }`}
                       prefetch={false}
                     >
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
                     </Link>
                   </li>
                 ))}
