@@ -12,10 +12,12 @@ interface PageProps {
 export default async function NewsPage({ params }: PageProps) {
   console.log("[NewsPage] Starting page render");
   const { category } = await params;
-  console.log("[NewsPage] Category from params:", category);
+  const decodedCategory = decodeURIComponent(category);
+  console.log("[NewsPage] Category from params:", decodedCategory);
 
   try {
-    const apiUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/news/${category}`;
+    const encodedCategory = encodeURIComponent(decodedCategory);
+    const apiUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/news/${encodedCategory}`;
     console.log("[NewsPage] Fetching from API:", apiUrl);
 
     const res = await fetch(apiUrl, {
@@ -36,7 +38,7 @@ export default async function NewsPage({ params }: PageProps) {
     return (
       <div className="max-w-3xl mx-auto py-10 px-4">
         <h1 className="text-3xl font-bold mb-6">
-          Últimas noticias en {category}
+          Últimas noticias en {decodedCategory}
         </h1>
         {newsList.length === 0 ? (
           <p className="text-gray-600">No se encontraron noticias hoy.</p>
