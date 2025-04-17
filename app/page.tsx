@@ -11,13 +11,14 @@ import {
 } from "@/placeholder";
 import { cleanJsonResponse } from "./utils";
 
-export default async function HomePage({
-  searchParams,
-}: {
-  searchParams: { category?: string };
-}) {
+interface PageProps {
+  params: Promise<{ category: string }>;
+}
+
+export default async function HomePage({ params }: PageProps) {
   let newsList: NewsItem[] = [];
-  const currentCategory = searchParams?.category || "actualidad";
+  const { category } = await params;
+  const currentCategory = category || "actualidad";
 
   try {
     // Paso 1: Obtengo las noticias trendy del dia (Extraigo el top 10 de la categoría seleccionada)

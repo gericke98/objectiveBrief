@@ -1,18 +1,16 @@
 // app/news/[category]/page.tsx
+
 import { NewsItem } from "@/types";
 import React from "react";
 
 export const dynamic = "force-dynamic";
 
-type newsProps = {
-  params: {
-    category: string;
-  };
-};
+interface PageProps {
+  params: Promise<{ category: string }>;
+}
 
-export default async function NewsPage({ params }: newsProps) {
-  console.log(params);
-  const category = decodeURIComponent(params.category);
+export default async function NewsPage({ params }: PageProps) {
+  const { category } = await params;
 
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/news/${category}`,
