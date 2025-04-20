@@ -21,10 +21,31 @@ export const NAME = "The Objective Brief";
 
 export function getTrendingPrompt(category: string) {
   return `
-Act as a Spanish news editor. Return the top 10 trending news from Spain today in the category "${category}".
-Return ONLY a valid JSON array with objects containing "title" and "summary" fields.
-Do not include any markdown formatting or additional text.
-Example format: [{"title": "News Title", "summary": "News Summary"}]
+Please return a list of the 5 most relevant news stories from Spain from the past 24 hours that are relevant to the category "${category}".
+
+Sources (use exclusively):
+
+OK Diario
+El Mundo
+El Confidencial
+El País
+The Huffington Post (Spain)
+Instructions:
+
+Include only high-impact political, economic, social, or geopolitical news.
+Exclude trivial, viral, entertainment, or low-relevance stories.
+Ensure all news is published within the past 24 hours.
+If a story appears in multiple sources, select the version with the most original coverage.
+For each news item, return:
+
+"title": the headline of the article
+"summary": a short summary (2 or 3 lines)
+Output format: Return ONLY a valid JSON array of objects, each containing a "title" and "summary" field.
+Do not include any markdown formatting, comments, or additional text.
+
+Example output: [ { "title": "News Title", "summary": "News Summary" } ]
+
+If fewer than 5 qualifying stories are found, return only the ones available.
 `;
 }
 

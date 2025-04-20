@@ -1,8 +1,9 @@
 import { OpenAIMessage } from "@/types";
 import { NextRequest } from "next/server";
 
-const MAX_RETRIES = Number(process.env.MAX_RETRIES);
-const RETRY_DELAY = Number(process.env.RETRY_DELAY);
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000;
+const TIMEOUT = 25000; // 25 seconds timeout
 const MODEL = process.env.MODEL;
 
 async function callOpenAI(
@@ -10,47 +11,92 @@ async function callOpenAI(
   temperature: number,
   retryCount = 0
 ) {
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      temperature,
-      messages,
-    }),
-  });
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
 
-  const responseText = await response.text();
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        temperature,
+        messages,
+      }),
+      signal: controller.signal,
+    });
 
-  if (!response.ok) {
-    console.error(
-      `[OpenAI Error] Status: ${response.status}, Body:`,
-      responseText
-    );
+    clearTimeout(timeoutId);
 
-    if (
-      retryCount < MAX_RETRIES &&
-      (response.status === 429 || response.status >= 500)
-    ) {
-      const delay = RETRY_DELAY * Math.pow(2, retryCount);
+    const responseText = await response.text();
 
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      return callOpenAI(messages, temperature, retryCount + 1);
+    if (!response.ok) {
+      console.error(
+        `[OpenAI Error] Status: ${response.status}, Body:`,
+        responseText
+      );
+
+      if (
+        retryCount < MAX_RETRIES &&
+        (response.status === 429 || response.status >= 500)
+      ) {
+        const delay = RETRY_DELAY * Math.pow(2, retryCount);
+        console.log(
+          `[OpenAI] Retrying in ${delay}ms (attempt ${
+            retryCount + 1
+          }/${MAX_RETRIES})`
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return callOpenAI(messages, temperature, retryCount + 1);
+      }
+
+      throw new Error(`OpenAI API error: ${response.status} ${responseText}`);
     }
 
-    throw new Error(`OpenAI API error: ${response.status} ${responseText}`);
-  }
+    try {
+      const data = JSON.parse(responseText);
+      return data;
+    } catch (error: unknown) {
+      console.error(`[OpenAI Error] Failed to parse response:`, error);
+      // Try to clean the response
+      const cleanedResponse = responseText
+        .replace(/```json\n?|\n?```/g, "")
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
+        .trim();
 
-  try {
-    const data = JSON.parse(responseText);
-
-    return data;
-  } catch (error) {
-    console.error(`[OpenAI Error] Failed to parse response:`, error);
-    throw new Error(`Failed to parse OpenAI response: ${error}`);
+      try {
+        return JSON.parse(cleanedResponse);
+      } catch {
+        console.error(
+          `[OpenAI Error] Failed to parse cleaned response:`,
+          cleanedResponse
+        );
+        throw new Error(
+          `Failed to parse OpenAI response: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
+      }
+    }
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === "AbortError") {
+      console.error("[OpenAI Error] Request timed out");
+      if (retryCount < MAX_RETRIES) {
+        const delay = RETRY_DELAY * Math.pow(2, retryCount);
+        console.log(
+          `[OpenAI] Retrying after timeout in ${delay}ms (attempt ${
+            retryCount + 1
+          }/${MAX_RETRIES})`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return callOpenAI(messages, temperature, retryCount + 1);
+      }
+    }
+    throw error;
   }
 }
 
@@ -67,8 +113,17 @@ export async function POST(req: NextRequest) {
 
     const result = await callOpenAI(messages, temperature || 0.7);
     return Response.json(result);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`[API Error]`, error);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    const isTimeout = error instanceof Error && error.name === "AbortError";
+    return Response.json(
+      {
+        error: error instanceof Error ? error.message : "Internal server error",
+        code: isTimeout ? "TIMEOUT" : "INTERNAL_ERROR",
+      },
+      {
+        status: isTimeout ? 504 : 500,
+      }
+    );
   }
 }
